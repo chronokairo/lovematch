@@ -16,7 +16,7 @@ class LoveMatchGame {
         this.moves = 0;
         this.startTime = null;
         this.gameTimer = null;
-        this.isGameActive = false;
+        this.isGameActive = true; // Muda para true para permitir clicks
         
         // Símbolos românticos
         this.symbols = [
@@ -52,17 +52,20 @@ class LoveMatchGame {
     }
     
     createGameBoard() {
+        // Limpa o board primeiro
+        this.gameBoard.innerHTML = '';
+        this.cards = [];
+        
         // Criar pares de cartas
         const cardSymbols = [...this.symbols, ...this.symbols];
         
-        // Embaralhar
+        // Embaralhar usando Fisher-Yates
         for (let i = cardSymbols.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [cardSymbols[i], cardSymbols[j]] = [cardSymbols[j], cardSymbols[i]];
         }
         
         // Criar elementos das cartas
-        this.gameBoard.innerHTML = '';
         cardSymbols.forEach((symbol, index) => {
             const card = this.createCard(symbol, index);
             this.gameBoard.appendChild(card);
@@ -91,20 +94,24 @@ class LoveMatchGame {
     }
     
     flipCard(card) {
-        if (!this.isGameActive) {
-            this.startGame();
-        }
-        
+        // Verificações de estado
         if (card.classList.contains('flipped') || 
             card.classList.contains('matched') ||
             this.flippedCards.length >= 2) {
             return;
         }
         
+        // Inicia o jogo no primeiro clique
+        if (this.startTime === null) {
+            this.startGame();
+        }
+        
+        // Vira a carta
         card.classList.add('flipped');
         this.flippedCards.push(card);
         this.playSound('flip-sound');
         
+        // Checa match quando 2 cartas estão viradas
         if (this.flippedCards.length === 2) {
             this.moves++;
             this.updateMoves();
@@ -132,11 +139,11 @@ class LoveMatchGame {
                 setTimeout(() => this.gameWon(), 1000);
             }
         } else {
-            // Não é match
+            // Não é match - vira de volta
             setTimeout(() => {
                 card1.classList.remove('flipped');
                 card2.classList.remove('flipped');
-            }, 1000);
+            }, 800);
         }
         
         this.flippedCards = [];
@@ -187,7 +194,6 @@ class LoveMatchGame {
     }
     
     startGame() {
-        this.isGameActive = true;
         this.startTime = Date.now();
         this.gameTimer = setInterval(() => this.updateTimer(), 1000);
     }
@@ -279,10 +285,12 @@ class LoveMatchGame {
         this.flippedCards = [];
         this.matchedPairs = 0;
         this.moves = 0;
-        this.isGameActive = false;
+        this.startTime = null;
+        this.isGameActive = true;
         
         if (this.gameTimer) {
             clearInterval(this.gameTimer);
+            this.gameTimer = null;
         }
         
         // Reset UI
@@ -323,7 +331,7 @@ class LoveMatchGame {
         if (audio) {
             audio.currentTime = 0;
             audio.play().catch(() => {
-                // Ignore audio play errors (some browsers require user interaction)
+                // Ignore audio play errors
             });
         }
     }
