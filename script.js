@@ -1,5 +1,6 @@
 class LoveMatchGame {
     constructor() {
+        // Elementos DOM existentes
         this.gameBoard = document.getElementById('game-board');
         this.timerElement = document.getElementById('timer');
         this.movesElement = document.getElementById('moves');
@@ -8,17 +9,34 @@ class LoveMatchGame {
         this.messageText = document.getElementById('message-text');
         this.victoryModal = document.getElementById('victory-modal');
         this.heartsContainer = document.getElementById('hearts-container');
+        
+        // Novos elementos para multiplayer
+        this.modeSelection = document.getElementById('mode-selection');
+        this.multiplayerLobby = document.getElementById('multiplayer-lobby');
+        this.gameScreen = document.getElementById('game-screen');
+        this.multiplayerInfo = document.getElementById('multiplayer-info');
 
-        // Game state
+        // Game state existente
         this.cards = [];
         this.flippedCards = [];
         this.matchedPairs = 0;
         this.moves = 0;
         this.startTime = null;
         this.gameTimer = null;
-        this.isGameActive = true; // Muda para true para permitir clicks
+        this.isGameActive = true;
 
-        // Símbolos românticos - TEMA ROMÂNTICO
+        // Multiplayer state
+        this.isMultiplayer = false;
+        this.roomCode = null;
+        this.playerId = null;
+        this.isHost = false;
+        this.isMyTurn = false;
+        this.playerScores = { player1: 0, player2: 0 };
+        this.connectedPlayers = 0;
+        this.gameState = null;
+        this.pollInterval = null;
+
+        // Símbolos românticos
         this.symbols = [
             'fas fa-heart',
             'fas fa-kiss',
@@ -46,26 +64,327 @@ class LoveMatchGame {
     }
 
     init() {
-        this.createGameBoard();
         this.setupEventListeners();
         this.startHeartParticles();
     }
 
-    createGameBoard() {
-        // Limpa o board primeiro
-        this.gameBoard.innerHTML = '';
-        this.cards = [];
+    // Navegação entre telas
+    showModeSelection() {
+        this.modeSelection.classList.remove('hidden');
+        this.multiplayerLobby.classList.add('hidden');
+        this.gameScreen.classList.add('hidden');
+    }
 
-        // Criar pares de cartas
+    showMultiplayerLobby() {
+        this.modeSelection.classList.add('hidden');
+        this.multiplayerLobby.classList.remove('hidden');
+        this.gameScreen.classList.add('hidden');
+    }
+
+    showGameScreen() {
+        this.modeSelection.classList.add('hidden');
+        this.multiplayerLobby.classList.add('hidden');
+        this.gameScreen.classList.remove('hidden');
+        
+        if (this.isMultiplayer) {
+            this.multiplayerInfo.classList.remove('hidden');
+            document.getElementById('back-to-lobby-btn').classList.remove('hidden');
+        } else {
+            this.multiplayerInfo.classList.add('hidden');
+            document.getElementById('back-to-lobby-btn').classList.add('hidden');
+        }
+    }
+
+    // Multiplayer API (simulada com localStorage para demo)
+    async createRoom() {
+        try {
+            const roomCode = this.generateRoomCode();
+            const gameState = {
+                roomCode,
+                players: [],
+                gameBoard: null,
+                currentTurn: 'player1',
+                scores: { player1: 0, player2: 0 },
+                gameStarted: false,
+                gameEnded: false
+            };
+
+            // Simular API com localStorage
+            localStorage.setItem(`room_${roomCode}`, JSON.stringify(gameState));
+            
+            this.roomCode = roomCode;
+            this.playerId = 'player1';
+            this.isHost = true;
+            
+            await this.joinRoom(roomCode);
+            return roomCode;
+        } catch (error) {
+            console.error('Erro ao criar sala:', error);
+            alert('Erro ao criar sala. Tente novamente.');
+        }
+    }
+
+    async joinRoom(roomCode) {
+        try {
+            const gameStateStr = localStorage.getItem(`room_${roomCode}`);
+            if (!gameStateStr) {
+                throw new Error('Sala não encontrada');
+            }
+
+            const gameState = JSON.parse(gameStateStr);
+            
+            if (gameState.players.length >= 2) {
+                throw new Error('Sala está cheia');
+            }
+
+            if (!this.playerId) {
+                this.playerId = gameState.players.length === 0 ? 'player1' : 'player2';
+            }
+
+            if (!gameState.players.find(p => p.id === this.playerId)) {
+                gameState.players.push({ 
+                    id: this.playerId, 
+                    ready: false 
+                });
+            }
+
+            localStorage.setItem(`room_${roomCode}`, JSON.stringify(gameState));
+            
+            this.roomCode = roomCode;
+            this.gameState = gameState;
+            this.updateLobbyUI();
+            this.startPolling();
+            
+            return true;
+        } catch (error) {
+            console.error('Erro ao entrar na sala:', error);
+            alert(error.message);
+            return false;
+        }
+    }
+
+    async setPlayerReady() {
+        if (!this.roomCode) return;
+
+        try {
+            const gameStateStr = localStorage.getItem(`room_${this.roomCode}`);
+            const gameState = JSON.parse(gameStateStr);
+            
+            const player = gameState.players.find(p => p.id === this.playerId);
+            if (player) {
+                player.ready = true;
+            }
+
+            // Se ambos jogadores estão prontos, inicia o jogo
+            if (gameState.players.length === 2 && 
+                gameState.players.every(p => p.ready)) {
+                
+                gameState.gameStarted = true;
+                gameState.gameBoard = this.generateGameBoard();
+                gameState.currentTurn = 'player1';
+            }
+
+            localStorage.setItem(`room_${this.roomCode}`, JSON.stringify(gameState));
+            this.gameState = gameState;
+
+            if (gameState.gameStarted) {
+                this.startMultiplayerGame();
+            }
+        } catch (error) {
+            console.error('Erro ao marcar como pronto:', error);
+        }
+    }
+
+    async makeMove(cardIndex) {
+        if (!this.isMyTurn || !this.roomCode) return false;
+
+        try {
+            const gameStateStr = localStorage.getItem(`room_${this.roomCode}`);
+            const gameState = JSON.parse(gameStateStr);
+            
+            if (!gameState.gameStarted || gameState.gameEnded) return false;
+
+            // Simular movimento no estado do jogo
+            const move = {
+                playerId: this.playerId,
+                cardIndex,
+                timestamp: Date.now()
+            };
+
+            if (!gameState.currentMove) {
+                gameState.currentMove = move;
+            } else {
+                // Segundo movimento do turno
+                const firstMove = gameState.currentMove;
+                const card1Symbol = gameState.gameBoard[firstMove.cardIndex];
+                const card2Symbol = gameState.gameBoard[cardIndex];
+
+                if (card1Symbol === card2Symbol) {
+                    // Match!
+                    gameState.scores[this.playerId]++;
+                    gameState.matchedCards = gameState.matchedCards || [];
+                    gameState.matchedCards.push(firstMove.cardIndex, cardIndex);
+                } else {
+                    // Não match - próximo jogador
+                    gameState.currentTurn = this.playerId === 'player1' ? 'player2' : 'player1';
+                }
+
+                gameState.currentMove = null;
+            }
+
+            localStorage.setItem(`room_${this.roomCode}`, JSON.stringify(gameState));
+            return true;
+        } catch (error) {
+            console.error('Erro ao fazer movimento:', error);
+            return false;
+        }
+    }
+
+    startPolling() {
+        if (this.pollInterval) return;
+
+        this.pollInterval = setInterval(async () => {
+            if (!this.roomCode) return;
+
+            try {
+                const gameStateStr = localStorage.getItem(`room_${this.roomCode}`);
+                if (!gameStateStr) return;
+
+                const newGameState = JSON.parse(gameStateStr);
+                
+                if (JSON.stringify(newGameState) !== JSON.stringify(this.gameState)) {
+                    this.gameState = newGameState;
+                    this.handleGameStateUpdate();
+                }
+            } catch (error) {
+                console.error('Erro no polling:', error);
+            }
+        }, 1000);
+    }
+
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+    }
+
+    handleGameStateUpdate() {
+        if (!this.gameState) return;
+
+        if (this.gameState.gameStarted && !this.isGameActive) {
+            this.startMultiplayerGame();
+        }
+
+        this.updateLobbyUI();
+        this.updateMultiplayerUI();
+        this.isMyTurn = this.gameState.currentTurn === this.playerId;
+    }
+
+    updateLobbyUI() {
+        if (!this.gameState) return;
+
+        document.getElementById('current-room-code').textContent = this.roomCode;
+        
+        const player1Element = document.getElementById('player1');
+        const player2Element = document.getElementById('player2');
+        
+        if (this.gameState.players.length >= 1) {
+            const player1 = this.gameState.players[0];
+            player1Element.classList.toggle('ready', player1.ready);
+            player1Element.querySelector('.ready-status').textContent = 
+                player1.ready ? 'Pronto!' : 'Aguardando...';
+        }
+        
+        if (this.gameState.players.length >= 2) {
+            const player2 = this.gameState.players[1];
+            player2Element.classList.toggle('ready', player2.ready);
+            player2Element.querySelector('.ready-status').textContent = 
+                player2.ready ? 'Pronto!' : 'Aguardando...';
+        }
+
+        const readyBtn = document.getElementById('ready-btn');
+        const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+        if (myPlayer && myPlayer.ready) {
+            readyBtn.textContent = 'Aguardando...';
+            readyBtn.disabled = true;
+        }
+    }
+
+    updateMultiplayerUI() {
+        if (!this.isMultiplayer || !this.gameState) return;
+
+        // Atualizar scores
+        document.querySelector('#player1-score .score').textContent = 
+            `${this.gameState.scores.player1} pares`;
+        document.querySelector('#player2-score .score').textContent = 
+            `${this.gameState.scores.player2} pares`;
+
+        // Atualizar indicador de turno
+        const turnText = document.getElementById('turn-text');
+        const turnIndicator = turnText.parentElement;
+        
+        if (this.isMyTurn) {
+            turnText.textContent = 'Sua vez!';
+            turnIndicator.className = 'turn-indicator your-turn';
+        } else {
+            turnText.textContent = 'Turno do oponente';
+            turnIndicator.className = 'turn-indicator opponent-turn';
+        }
+
+        // Destacar jogador ativo
+        document.getElementById('player1-score').classList.toggle('active', 
+            this.gameState.currentTurn === 'player1');
+        document.getElementById('player2-score').classList.toggle('active', 
+            this.gameState.currentTurn === 'player2');
+    }
+
+    generateRoomCode() {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    generateGameBoard() {
         const cardSymbols = [...this.symbols, ...this.symbols];
-
-        // Embaralhar usando Fisher-Yates
+        
+        // Embaralhar
         for (let i = cardSymbols.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [cardSymbols[i], cardSymbols[j]] = [cardSymbols[j], cardSymbols[i]];
         }
+        
+        return cardSymbols;
+    }
 
-        // Criar elementos das cartas
+    startMultiplayerGame() {
+        this.isMultiplayer = true;
+        this.isGameActive = true;
+        this.showGameScreen();
+        this.createGameBoard();
+        this.isMyTurn = this.gameState.currentTurn === this.playerId;
+        this.updateMultiplayerUI();
+        
+        if (this.playerId === 'player1') {
+            this.startGame();
+        }
+    }
+
+    // Modificações nas funções existentes para suportar multiplayer
+    createGameBoard() {
+        this.gameBoard.innerHTML = '';
+        this.cards = [];
+        
+        let cardSymbols;
+        if (this.isMultiplayer && this.gameState && this.gameState.gameBoard) {
+            cardSymbols = this.gameState.gameBoard;
+        } else {
+            cardSymbols = [...this.symbols, ...this.symbols];
+            
+            for (let i = cardSymbols.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cardSymbols[i], cardSymbols[j]] = [cardSymbols[j], cardSymbols[i]];
+            }
+        }
+
         cardSymbols.forEach((symbol, index) => {
             const card = this.createCard(symbol, index);
             this.gameBoard.appendChild(card);
@@ -89,29 +408,32 @@ class LoveMatchGame {
         `;
 
         card.addEventListener('click', () => this.flipCard(card));
-
         return card;
     }
 
-    flipCard(card) {
-        // Verificações de estado
+    async flipCard(card) {
+        if (this.isMultiplayer && !this.isMyTurn) {
+            return;
+        }
+
         if (card.classList.contains('flipped') ||
             card.classList.contains('matched') ||
             this.flippedCards.length >= 2) {
             return;
         }
 
-        // Inicia o jogo no primeiro clique
         if (this.startTime === null) {
             this.startGame();
         }
 
-        // Vira a carta
         card.classList.add('flipped');
         this.flippedCards.push(card);
         this.playSound('flip-sound');
 
-        // Checa match quando 2 cartas estão viradas
+        if (this.isMultiplayer) {
+            await this.makeMove(parseInt(card.dataset.index));
+        }
+
         if (this.flippedCards.length === 2) {
             this.moves++;
             this.updateMoves();
@@ -125,7 +447,6 @@ class LoveMatchGame {
         const symbol2 = card2.dataset.symbol;
 
         if (symbol1 === symbol2) {
-            // Match encontrado!
             card1.classList.add('matched');
             card2.classList.add('matched');
             this.matchedPairs++;
@@ -135,11 +456,15 @@ class LoveMatchGame {
             this.createHeartBurst(card1);
             this.createHeartBurst(card2);
 
+            if (this.isMultiplayer) {
+                this.gameState.scores[this.playerId]++;
+                this.updateMultiplayerUI();
+            }
+
             if (this.matchedPairs === 8) {
                 setTimeout(() => this.gameWon(), 1000);
             }
         } else {
-            // Não é match - vira de volta
             setTimeout(() => {
                 card1.classList.remove('flipped');
                 card2.classList.remove('flipped');
@@ -149,6 +474,130 @@ class LoveMatchGame {
         this.flippedCards = [];
     }
 
+    gameWon() {
+        clearInterval(this.gameTimer);
+        this.isGameActive = false;
+        this.stopPolling();
+
+        if (this.isMultiplayer) {
+            const myScore = this.gameState.scores[this.playerId];
+            const opponentId = this.playerId === 'player1' ? 'player2' : 'player1';
+            const opponentScore = this.gameState.scores[opponentId];
+
+            document.getElementById('victory-title').textContent = 
+                myScore > opponentScore ? '🎉 Você Venceu! 🎉' : 
+                myScore < opponentScore ? '😔 Você Perdeu 😔' : 
+                '🤝 Empate! 🤝';
+
+            document.getElementById('victory-message').textContent = 
+                'Jogo finalizado!';
+
+            document.getElementById('multiplayer-result').classList.remove('hidden');
+            document.getElementById('final-player-pairs').textContent = myScore;
+            document.getElementById('final-opponent-pairs').textContent = opponentScore;
+        } else {
+            document.getElementById('victory-title').textContent = '🎉 Parabéns! 🎉';
+            document.getElementById('victory-message').textContent = 
+                'Você encontrou todos os pares!';
+            document.getElementById('multiplayer-result').classList.add('hidden');
+        }
+
+        document.getElementById('final-time').textContent = this.timerElement.textContent;
+        document.getElementById('final-moves').textContent = this.moves;
+
+        this.victoryModal.classList.remove('hidden');
+        this.createVictoryParticles();
+    }
+
+    resetGame() {
+        this.flippedCards = [];
+        this.matchedPairs = 0;
+        this.moves = 0;
+        this.startTime = null;
+        this.isGameActive = true;
+
+        if (this.gameTimer) {
+            clearInterval(this.gameTimer);
+            this.gameTimer = null;
+        }
+
+        this.timerElement.textContent = '00:00';
+        this.movesElement.textContent = '0';
+        this.pairsElement.textContent = '0';
+        this.victoryModal.classList.add('hidden');
+        this.loveMessage.classList.add('hidden');
+
+        if (this.isMultiplayer) {
+            this.showMultiplayerLobby();
+            this.stopPolling();
+            this.isMultiplayer = false;
+            this.roomCode = null;
+            this.playerId = null;
+            this.gameState = null;
+        } else {
+            this.createGameBoard();
+        }
+    }
+
+    setupEventListeners() {
+        // Mode selection
+        document.getElementById('single-player-btn').addEventListener('click', () => {
+            this.isMultiplayer = false;
+            this.showGameScreen();
+            this.createGameBoard();
+        });
+
+        document.getElementById('multiplayer-btn').addEventListener('click', () => {
+            this.showMultiplayerLobby();
+        });
+
+        // Lobby
+        document.getElementById('create-room-btn').addEventListener('click', async () => {
+            const roomCode = await this.createRoom();
+            if (roomCode) {
+                document.getElementById('room-info').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('join-room-btn').addEventListener('click', () => {
+            document.getElementById('room-input').classList.remove('hidden');
+        });
+
+        document.getElementById('join-confirm-btn').addEventListener('click', async () => {
+            const roomCode = document.getElementById('room-code').value.toUpperCase();
+            if (roomCode.length === 6) {
+                const success = await this.joinRoom(roomCode);
+                if (success) {
+                    document.getElementById('room-input').classList.add('hidden');
+                    document.getElementById('room-info').classList.remove('hidden');
+                }
+            }
+        });
+
+        document.getElementById('ready-btn').addEventListener('click', () => {
+            this.setPlayerReady();
+        });
+
+        document.getElementById('back-to-menu').addEventListener('click', () => {
+            this.stopPolling();
+            this.showModeSelection();
+        });
+
+        // Game buttons
+        document.getElementById('play-again-btn').addEventListener('click', () => {
+            this.resetGame();
+        });
+
+        document.getElementById('back-to-lobby-btn').addEventListener('click', () => {
+            this.resetGame();
+        });
+
+        document.getElementById('share-btn').addEventListener('click', () => {
+            this.shareGame();
+        });
+    }
+
+    // Métodos existentes permanecem iguais...
     showLoveMessage() {
         const randomMessage = this.loveMessages[Math.floor(Math.random() * this.loveMessages.length)];
         this.messageText.textContent = randomMessage;
@@ -213,17 +662,6 @@ class LoveMatchGame {
         this.pairsElement.textContent = this.matchedPairs;
     }
 
-    gameWon() {
-        clearInterval(this.gameTimer);
-        this.isGameActive = false;
-
-        document.getElementById('final-time').textContent = this.timerElement.textContent;
-        document.getElementById('final-moves').textContent = this.moves;
-
-        this.victoryModal.classList.remove('hidden');
-        this.createVictoryParticles();
-    }
-
     createVictoryParticles() {
         for (let i = 0; i < 50; i++) {
             setTimeout(() => {
@@ -270,48 +708,23 @@ class LoveMatchGame {
         }, 2000);
     }
 
-    setupEventListeners() {
-        document.getElementById('play-again-btn').addEventListener('click', () => {
-            this.resetGame();
-        });
-
-        document.getElementById('share-btn').addEventListener('click', () => {
-            this.shareGame();
-        });
-    }
-
-    resetGame() {
-        // Reset game state
-        this.flippedCards = [];
-        this.matchedPairs = 0;
-        this.moves = 0;
-        this.startTime = null;
-        this.isGameActive = true;
-
-        if (this.gameTimer) {
-            clearInterval(this.gameTimer);
-            this.gameTimer = null;
-        }
-
-        // Reset UI
-        this.timerElement.textContent = '00:00';
-        this.movesElement.textContent = '0';
-        this.pairsElement.textContent = '0';
-        this.victoryModal.classList.add('hidden');
-        this.loveMessage.classList.add('hidden');
-
-        // Recreate board
-        this.createGameBoard();
-    }
-
     shareGame() {
         const customMessage = document.getElementById('custom-love-message').value;
         const time = document.getElementById('final-time').textContent;
         const moves = document.getElementById('final-moves').textContent;
 
-        const shareText = customMessage ?
-            `${customMessage}\n\nJoguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}` :
-            `Joguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}`;
+        let shareText;
+        if (this.isMultiplayer) {
+            const myScore = document.getElementById('final-player-pairs').textContent;
+            const opponentScore = document.getElementById('final-opponent-pairs').textContent;
+            shareText = customMessage ? 
+                `${customMessage}\n\nJoguei Love Match multiplayer: ${myScore} x ${opponentScore} em ${time}! 💕\n\nJogue você também: ${window.location.href}` :
+                `Joguei Love Match multiplayer: ${myScore} x ${opponentScore} em ${time}! 💕\n\nJogue você também: ${window.location.href}`;
+        } else {
+            shareText = customMessage ? 
+                `${customMessage}\n\nJoguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}` :
+                `Joguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}`;
+        }
 
         if (navigator.share) {
             navigator.share({
@@ -339,7 +752,7 @@ class LoveMatchGame {
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new LoveMatchGame();
+    window.game = new LoveMatchGame(); // Tornar global para Electron
 });
 
 // Add some CSS animations dynamically
