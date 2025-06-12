@@ -8,7 +8,7 @@ class LoveMatchGame {
         this.messageText = document.getElementById('message-text');
         this.victoryModal = document.getElementById('victory-modal');
         this.heartsContainer = document.getElementById('hearts-container');
-        
+
         // Game state
         this.cards = [];
         this.flippedCards = [];
@@ -17,19 +17,19 @@ class LoveMatchGame {
         this.startTime = null;
         this.gameTimer = null;
         this.isGameActive = true; // Muda para true para permitir clicks
-        
-        // Símbolos românticos
+
+        // Símbolos românticos - TEMA ROMÂNTICO
         this.symbols = [
             'fas fa-heart',
-            'fas fa-kiss-wink-heart', 
-            'fas fa-rose',
+            'fas fa-kiss',
+            'fas fa-gift',
             'fas fa-ring',
             'fas fa-wine-glass',
-            'fas fa-envelope-heart',
-            'fas fa-gift',
-            'fas fa-candy-cane'
+            'fas fa-envelope',
+            'far fa-heart',
+            'fas fa-star'
         ];
-        
+
         // Mensagens de amor
         this.loveMessages = [
             "Você é minha pessoa favorita! 💕",
@@ -41,30 +41,30 @@ class LoveMatchGame {
             "Amor não tem fim quando é verdadeiro 💝",
             "Você completa minha vida 🌟"
         ];
-        
+
         this.init();
     }
-    
+
     init() {
         this.createGameBoard();
         this.setupEventListeners();
         this.startHeartParticles();
     }
-    
+
     createGameBoard() {
         // Limpa o board primeiro
         this.gameBoard.innerHTML = '';
         this.cards = [];
-        
+
         // Criar pares de cartas
         const cardSymbols = [...this.symbols, ...this.symbols];
-        
+
         // Embaralhar usando Fisher-Yates
         for (let i = cardSymbols.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [cardSymbols[i], cardSymbols[j]] = [cardSymbols[j], cardSymbols[i]];
         }
-        
+
         // Criar elementos das cartas
         cardSymbols.forEach((symbol, index) => {
             const card = this.createCard(symbol, index);
@@ -72,13 +72,13 @@ class LoveMatchGame {
             this.cards.push(card);
         });
     }
-    
+
     createCard(symbol, index) {
         const card = document.createElement('div');
         card.className = 'card';
         card.dataset.symbol = symbol;
         card.dataset.index = index;
-        
+
         card.innerHTML = `
             <div class="card-face card-back">
                 <i class="fas fa-question"></i>
@@ -87,30 +87,30 @@ class LoveMatchGame {
                 <i class="${symbol}"></i>
             </div>
         `;
-        
+
         card.addEventListener('click', () => this.flipCard(card));
-        
+
         return card;
     }
-    
+
     flipCard(card) {
         // Verificações de estado
-        if (card.classList.contains('flipped') || 
+        if (card.classList.contains('flipped') ||
             card.classList.contains('matched') ||
             this.flippedCards.length >= 2) {
             return;
         }
-        
+
         // Inicia o jogo no primeiro clique
         if (this.startTime === null) {
             this.startGame();
         }
-        
+
         // Vira a carta
         card.classList.add('flipped');
         this.flippedCards.push(card);
         this.playSound('flip-sound');
-        
+
         // Checa match quando 2 cartas estão viradas
         if (this.flippedCards.length === 2) {
             this.moves++;
@@ -118,12 +118,12 @@ class LoveMatchGame {
             setTimeout(() => this.checkMatch(), 600);
         }
     }
-    
+
     checkMatch() {
         const [card1, card2] = this.flippedCards;
         const symbol1 = card1.dataset.symbol;
         const symbol2 = card2.dataset.symbol;
-        
+
         if (symbol1 === symbol2) {
             // Match encontrado!
             card1.classList.add('matched');
@@ -134,7 +134,7 @@ class LoveMatchGame {
             this.showLoveMessage();
             this.createHeartBurst(card1);
             this.createHeartBurst(card2);
-            
+
             if (this.matchedPairs === 8) {
                 setTimeout(() => this.gameWon(), 1000);
             }
@@ -145,25 +145,25 @@ class LoveMatchGame {
                 card2.classList.remove('flipped');
             }, 800);
         }
-        
+
         this.flippedCards = [];
     }
-    
+
     showLoveMessage() {
         const randomMessage = this.loveMessages[Math.floor(Math.random() * this.loveMessages.length)];
         this.messageText.textContent = randomMessage;
         this.loveMessage.classList.remove('hidden');
-        
+
         setTimeout(() => {
             this.loveMessage.classList.add('hidden');
         }, 3000);
     }
-    
+
     createHeartBurst(card) {
         const rect = card.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        
+
         for (let i = 0; i < 8; i++) {
             const heart = document.createElement('div');
             heart.innerHTML = '💖';
@@ -173,14 +173,14 @@ class LoveMatchGame {
             heart.style.fontSize = '20px';
             heart.style.pointerEvents = 'none';
             heart.style.zIndex = '1000';
-            
+
             const angle = (i / 8) * Math.PI * 2;
             const distance = 100;
             const endX = centerX + Math.cos(angle) * distance;
             const endY = centerY + Math.sin(angle) * distance;
-            
+
             document.body.appendChild(heart);
-            
+
             heart.animate([
                 { transform: 'translate(0, 0) scale(0)', opacity: 1 },
                 { transform: `translate(${endX - centerX}px, ${endY - centerY}px) scale(1)`, opacity: 0 }
@@ -192,38 +192,38 @@ class LoveMatchGame {
             });
         }
     }
-    
+
     startGame() {
         this.startTime = Date.now();
         this.gameTimer = setInterval(() => this.updateTimer(), 1000);
     }
-    
+
     updateTimer() {
         const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
         const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
         const seconds = (elapsed % 60).toString().padStart(2, '0');
         this.timerElement.textContent = `${minutes}:${seconds}`;
     }
-    
+
     updateMoves() {
         this.movesElement.textContent = this.moves;
     }
-    
+
     updatePairs() {
         this.pairsElement.textContent = this.matchedPairs;
     }
-    
+
     gameWon() {
         clearInterval(this.gameTimer);
         this.isGameActive = false;
-        
+
         document.getElementById('final-time').textContent = this.timerElement.textContent;
         document.getElementById('final-moves').textContent = this.moves;
-        
+
         this.victoryModal.classList.remove('hidden');
         this.createVictoryParticles();
     }
-    
+
     createVictoryParticles() {
         for (let i = 0; i < 50; i++) {
             setTimeout(() => {
@@ -235,9 +235,9 @@ class LoveMatchGame {
                 heart.style.fontSize = (Math.random() * 20 + 15) + 'px';
                 heart.style.pointerEvents = 'none';
                 heart.style.zIndex = '999';
-                
+
                 document.body.appendChild(heart);
-                
+
                 heart.animate([
                     { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
                     { transform: `translateY(${window.innerHeight + 100}px) rotate(360deg)`, opacity: 0 }
@@ -250,7 +250,7 @@ class LoveMatchGame {
             }, i * 100);
         }
     }
-    
+
     startHeartParticles() {
         setInterval(() => {
             if (Math.random() < 0.3) {
@@ -260,26 +260,26 @@ class LoveMatchGame {
                 heart.style.left = Math.random() * window.innerWidth + 'px';
                 heart.style.animationDuration = (Math.random() * 3 + 2) + 's';
                 heart.style.animationDelay = Math.random() * 2 + 's';
-                
+
                 this.heartsContainer.appendChild(heart);
-                
+
                 setTimeout(() => {
                     heart.remove();
                 }, 5000);
             }
         }, 2000);
     }
-    
+
     setupEventListeners() {
         document.getElementById('play-again-btn').addEventListener('click', () => {
             this.resetGame();
         });
-        
+
         document.getElementById('share-btn').addEventListener('click', () => {
             this.shareGame();
         });
     }
-    
+
     resetGame() {
         // Reset game state
         this.flippedCards = [];
@@ -287,32 +287,32 @@ class LoveMatchGame {
         this.moves = 0;
         this.startTime = null;
         this.isGameActive = true;
-        
+
         if (this.gameTimer) {
             clearInterval(this.gameTimer);
             this.gameTimer = null;
         }
-        
+
         // Reset UI
         this.timerElement.textContent = '00:00';
         this.movesElement.textContent = '0';
         this.pairsElement.textContent = '0';
         this.victoryModal.classList.add('hidden');
         this.loveMessage.classList.add('hidden');
-        
+
         // Recreate board
         this.createGameBoard();
     }
-    
+
     shareGame() {
         const customMessage = document.getElementById('custom-love-message').value;
         const time = document.getElementById('final-time').textContent;
         const moves = document.getElementById('final-moves').textContent;
-        
-        const shareText = customMessage ? 
+
+        const shareText = customMessage ?
             `${customMessage}\n\nJoguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}` :
             `Joguei Love Match e terminei em ${time} com ${moves} tentativas! 💕\n\nJogue você também: ${window.location.href}`;
-        
+
         if (navigator.share) {
             navigator.share({
                 title: 'Love Match - Jogo do Dia dos Namorados',
@@ -325,7 +325,7 @@ class LoveMatchGame {
             });
         }
     }
-    
+
     playSound(soundId) {
         const audio = document.getElementById(soundId);
         if (audio) {
@@ -350,8 +350,20 @@ style.textContent = `
         50% { transform: scale(1.1); }
     }
     
-    .card:hover {
+    .card:not(.flipped):not(.matched):hover {
         animation: heartbeat 1s infinite;
+        transform: scale(1.05);
+    }
+    
+    /* Remove hover effects das cartas viradas ou com match */
+    .card.flipped:hover,
+    .card.matched:hover {
+        animation: none;
+        transform: rotateY(180deg);
+    }
+    
+    .card.matched:hover {
+        transform: rotateY(180deg) scale(1.05);
     }
 `;
 document.head.appendChild(style);
