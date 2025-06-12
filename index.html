@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Love Match - Jogo do Dia dos Namorados</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Partículas de corações -->
+    <div id="hearts-container"></div>
+    
+    <!-- Header -->
+    <header class="game-header">
+        <h1 class="game-title">
+            <i class="fas fa-heart"></i>
+            Love Match
+            <i class="fas fa-heart"></i>
+        </h1>
+        <p class="game-subtitle">Encontre os pares e desbloqueie mensagens de amor!</p>
+    </header>
+
+    <!-- Game Stats -->
+    <div class="game-stats">
+        <div class="stat">
+            <i class="fas fa-clock"></i>
+            <span id="timer">00:00</span>
+        </div>
+        <div class="stat">
+            <i class="fas fa-mouse-pointer"></i>
+            <span id="moves">0</span> tentativas
+        </div>
+        <div class="stat">
+            <i class="fas fa-trophy"></i>
+            <span id="pairs">0</span>/8 pares
+        </div>
+    </div>
+
+    <!-- Game Board -->
+    <main class="game-container">
+        <div id="game-board" class="game-board"></div>
+    </main>
+
+    <!-- Love Message Display -->
+    <div id="love-message" class="love-message hidden">
+        <div class="message-content">
+            <i class="fas fa-heart pulse"></i>
+            <p id="message-text"></p>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🎉 Parabéns! 🎉</h2>
+            <p>Você encontrou todos os pares!</p>
+            <div class="final-stats">
+                <p>⏰ Tempo: <span id="final-time"></span></p>
+                <p>🎯 Tentativas: <span id="final-moves"></span></p>
+            </div>
+            <div class="custom-message">
+                <label for="custom-love-message">Escreva uma mensagem especial:</label>
+                <textarea id="custom-love-message" placeholder="Digite sua mensagem de amor aqui..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button id="play-again-btn" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> Jogar Novamente
+                </button>
+                <button id="share-btn" class="btn btn-secondary">
+                    <i class="fas fa-share"></i> Compartilhar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio -->
+    <audio id="flip-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+PyvmgfDDN+1O3hgTYCAT+B1O7hfzYE" type="audio/wav">
+    </audio>
+    <audio id="match-sound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+PyvmgfDDN+1O3hgTYCAT+B1O7hfzYE" type="audio/wav">
+    </audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
